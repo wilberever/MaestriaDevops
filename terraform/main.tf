@@ -20,3 +20,38 @@ provider "google" {
   project = var.project_id
   region  = var.region
 }
+
+# ══════════════════════════════════════════════════════════
+#  CLOUD STORAGE — Data Lake (raw / processed / curated)
+# ══════════════════════════════════════════════════════════
+resource "google_storage_bucket" "raw" {
+  name                        = "datalake-raw-${var.environment}"
+  location                    = "US"
+  force_destroy               = true
+  uniform_bucket_level_access = true
+
+  versioning { enabled = true }
+
+  lifecycle_rule {
+    condition { age = 365 }
+    action    { type = "Delete" }
+  }
+}
+
+resource "google_storage_bucket" "processed" {
+  name                        = "datalake-processed-${var.environment}"
+  location                    = "US"
+  force_destroy               = true
+  uniform_bucket_level_access = true
+
+  versioning { enabled = true }
+}
+
+resource "google_storage_bucket" "curated" {
+  name                        = "datalake-curated-${var.environment}"
+  location                    = "US"
+  force_destroy               = true
+  uniform_bucket_level_access = true
+
+  versioning { enabled = true }
+}
