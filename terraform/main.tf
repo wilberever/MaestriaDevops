@@ -55,3 +55,14 @@ resource "google_storage_bucket" "curated" {
 
   versioning { enabled = true }
 }
+
+# ══════════════════════════════════════════════════════════
+#  BIGQUERY — Dataset para análisis
+# ══════════════════════════════════════════════════════════
+resource "google_bigquery_dataset" "data_mart" {
+  dataset_id    = "data_mart_${var.environment}"
+  friendly_name = "Data Mart [${var.environment}]"
+  description   = "Datos curados listos para análisis"
+  location      = "US"
+  delete_contents_on_destroy = true
+}
