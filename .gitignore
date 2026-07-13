@@ -1,0 +1,30 @@
+# Terraform
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+tfplan.bin
+crash.log
+crash.*.log
+.terraform.lock.hcl
+*.tfvars
+*.tfvars.json
+
+# LaTeX build artifacts
+*.aux
+*.log
+*.toc
+*.out
+*.synctex.gz
+*.fls
+*.fdb_latexmk
+*.pdf
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Documentos administrativos de la actividad (no forman parte del pipeline)
+rubrica.md
+planteamiento.md
+foro_cicd_terraform.txt
