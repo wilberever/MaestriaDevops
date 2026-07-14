@@ -1,0 +1,18 @@
+substitutions:
+  _ENV: "staging"
+  _PROJECT: "${PROJECT_ID}"
+  _EMAIL: "devops@example.com"
+
+steps:
+
+  # ── 1. Validar formato y sintaxis ────────────────────────────
+  - id: "validate"
+    name: "hashicorp/terraform:1.6.5"
+    entrypoint: sh
+    args:
+      - -c
+      - |
+        cd terraform
+        terraform fmt -check
+        terraform init -backend=false
+        terraform validate
