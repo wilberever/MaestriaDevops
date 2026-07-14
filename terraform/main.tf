@@ -86,3 +86,33 @@ resource "google_project_iam_member" "dataflow_storage" {
   role    = "roles/storage.objectAdmin"
   member  = "serviceAccount:${google_service_account.dataflow.email}"
 }
+
+# ══════════════════════════════════════════════════════════
+#  MONITORING — Alerta de errores + canal de email
+# ══════════════════════════════════════════════════════════
+resource "google_monitoring_notification_channel" "email" {
+  display_name = "Email DevOps [${var.environment}]"
+  type         = "email"
+  labels       = { email_address = var.alert_email }
+}
+
+resource "google_monitoring_alert_policy" "dataflow_errors" {
+  display_name = "Dataflow Job Errors [${var.environment}]"
+  combiner     = "OR"
+
+  conditions {
+    display_name = "Job fallido"
+    condition_threshold {
+      filter          = "resource.type=\"dataflow_job\" AND metric.type=\"dataflow.googleapis.com/job/element_count\""
+      duration        = "60s"
+      comparison      = "COMPARISON_GT"
+      threshold_value = 0
+      aggregations {
+        alignment_period   = "60s"
+        per_series_aligner = "ALIGN_COUNT"
+      }
+    }
+  }
+
+  notification_channels = [google_monitoring_notification_channel.email.name]
+}
