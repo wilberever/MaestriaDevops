@@ -66,3 +66,23 @@ resource "google_bigquery_dataset" "data_mart" {
   location      = "US"
   delete_contents_on_destroy = true
 }
+
+# ══════════════════════════════════════════════════════════
+#  IAM — Service Account para Dataflow (mínimo privilegio)
+# ══════════════════════════════════════════════════════════
+resource "google_service_account" "dataflow" {
+  account_id   = "sa-dataflow-${var.environment}"
+  display_name = "Dataflow ETL Runner [${var.environment}]"
+}
+
+resource "google_project_iam_member" "dataflow_worker" {
+  project = var.project_id
+  role    = "roles/dataflow.worker"
+  member  = "serviceAccount:${google_service_account.dataflow.email}"
+}
+
+resource "google_project_iam_member" "dataflow_storage" {
+  project = var.project_id
+  role    = "roles/storage.objectAdmin"
+  member  = "serviceAccount:${google_service_account.dataflow.email}"
+}
