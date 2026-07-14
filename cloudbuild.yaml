@@ -16,3 +16,9 @@ steps:
         terraform fmt -check
         terraform init -backend=false
         terraform validate
+
+  # ── 2. Escaneo de seguridad IaC (DevSecOps) ──────────────────
+  - id: "security-scan"
+    name: "aquasec/tfsec:latest"
+    args: ["terraform/", "--minimum-severity=HIGH"]
+    waitFor: ["validate"]
