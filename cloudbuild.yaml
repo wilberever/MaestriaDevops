@@ -51,3 +51,18 @@ steps:
         cd terraform
         terraform apply -auto-approve tfplan.bin
     waitFor: ["plan"]
+
+  # ── 5. Smoke tests ───────────────────────────────────────────
+  - id: "verify"
+    name: "gcr.io/google.com/cloudsdktool/cloud-sdk:slim"
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        gsutil ls gs://datalake-raw-${_ENV}       || exit 1
+        gsutil ls gs://datalake-processed-${_ENV}  || exit 1
+        bq ls --project_id=${_PROJECT} data_mart_${_ENV} || exit 1
+        echo "Despliegue verificado OK"
+    waitFor: ["apply"]
+
+timeout: "900s"
