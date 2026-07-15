@@ -40,3 +40,14 @@ steps:
           -var="alert_email=${_EMAIL}" \
           -out=tfplan.bin
     waitFor: ["security-scan"]
+
+  # ── 4. Terraform Apply ───────────────────────────────────────
+  - id: "apply"
+    name: "hashicorp/terraform:1.6.5"
+    entrypoint: sh
+    args:
+      - -c
+      - |
+        cd terraform
+        terraform apply -auto-approve tfplan.bin
+    waitFor: ["plan"]
