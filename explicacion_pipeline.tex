@@ -1,0 +1,96 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[spanish,es-noshorthands]{babel}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{parskip}
+
+\definecolor{linkblue}{HTML}{1C6E8C}
+\hypersetup{
+  colorlinks=true,
+  linkcolor=linkblue,
+  urlcolor=linkblue,
+  citecolor=linkblue
+}
+
+\titleformat{\section}{\large\bfseries}{\thesection.}{0.5em}{}
+\titleformat{\subsection}{\normalsize\bfseries}{\thesubsection}{0.5em}{}
+\titlespacing*{\section}{0pt}{1.1em}{0.5em}
+\titlespacing*{\subsection}{0pt}{0.9em}{0.3em}
+
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0.55em}
+
+\title{\vspace{-1.5cm}\textbf{Pipeline automatizado de IaC con Terraform}\\
+\large Despliegue de un Data Lake en Google Cloud Platform}
+\author{
+  Ana Inado \\
+  Ariana Sanchez \\
+  Wilber Correa \\
+  Linder Kriss \\
+  Brenner Perez
+}
+\date{14 de julio del 2026}
+
+\begin{document}
+
+\maketitle
+\vspace{-1.2cm}
+
+\section{Introducción y caso de uso}
+
+Este trabajo diseña e implementa el esquema de un pipeline CI/CD automatizado, basado en Infraestructura como Código (IaC) con Terraform, para desplegar un servicio de datos en la nube. Se seleccionó \textbf{Google Cloud Platform (GCP)} como proveedor y un \textbf{Data Lake} como caso de uso: tres buckets de Cloud Storage organizados por capa de madurez del dato (\texttt{raw}, \texttt{processed}, \texttt{curated}), un dataset de BigQuery para analítica y un pipeline de Dataflow para el procesamiento ETL, todo declarado como código en \texttt{terraform/*.tf} y orquestado mediante \texttt{cloudbuild.yaml}.
+
+El pipeline se organiza en seis etapas: control de versiones, integración continua con controles DevSecOps, planificación (\texttt{terraform plan}), aprovisionamiento (\texttt{terraform apply}), validación del despliegue y monitoreo continuo. El esquema visual completo se encuentra en \texttt{pipeline\_cicd\_gcp.drawio}.
+
+Todo el código fuente (Terraform, pipeline de Cloud Build y este mismo documento) está versionado en el siguiente repositorio: \url{https://github.com/wilberever/MaestriaDevops}.
+
+\section{Funcionamiento del pipeline}
+
+\subsection{Control de versiones}
+Todo cambio de infraestructura parte de un repositorio Git con \emph{Git Flow} (\texttt{feature}/\texttt{develop}/\texttt{main}), \emph{pull requests} obligatorios con revisión de código (\texttt{CODEOWNERS}) y protección de la rama principal, de modo que ningún cambio llega a \texttt{main} sin haber sido revisado por otra persona del equipo.
+
+\subsection{Integración continua y DevSecOps}
+Cada \emph{push} dispara un \emph{trigger} de Cloud Build que primero valida sintaxis (\texttt{terraform fmt}, \texttt{terraform validate}) y luego ejecuta un escaneo de seguridad sobre el propio código de infraestructura con \texttt{tfsec}, antes de que el plan siquiera se genere. Esto es el núcleo del enfoque DevSecOps del trabajo: la seguridad no es una revisión posterior al despliegue, sino una condición para que el pipeline continúe (\emph{shift-left security}).
+
+\subsection{Planificación y aprovisionamiento}
+\texttt{terraform plan} calcula el conjunto de cambios contra un \emph{backend} remoto en Cloud Storage con bloqueo de estado, y \texttt{terraform apply} los ejecuta sobre el proyecto de GCP: creación de los buckets del Data Lake, el dataset de BigQuery, una cuenta de servicio de mínimo privilegio para Dataflow y una política de alertas de monitoreo.
+
+\subsection{Validación y monitoreo}
+Tras el despliegue, un paso de \emph{smoke tests} confirma con el SDK de Google Cloud que los buckets y el dataset existen y son accesibles antes de dar el despliegue por exitoso. En operación continua, Cloud Monitoring y Cloud Alerting vigilan errores del job de Dataflow y notifican al equipo por correo.
+
+\section{Decisiones técnicas y análisis crítico}
+
+\textbf{Estado remoto como superficie de riesgo.} Se decidió usar un \emph{backend} remoto de Terraform en Cloud Storage con versionado en lugar de estado local, precisamente porque el archivo \texttt{tfstate} concentra el detalle completo de la infraestructura desplegada y, si no se protege, se convierte en un punto único de fuga de información (Red Hat, s.f.).
+
+\textbf{Deriva de configuración (\emph{configuration drift}).} El equipo optó por no permitir cambios manuales en la consola de GCP: todo cambio debe pasar por Terraform. La razón es que un cambio hecho fuera del pipeline deja de estar reflejado en el código, y entonces el control de acceso y el monitoreo definidos en el propio Terraform terminan operando sobre una infraestructura que ya no coincide con lo declarado.
+
+\textbf{Inconsistencia identificada --- aprobación manual antes de \texttt{apply}.} El esquema visual del pipeline incluye un \emph{gate} de revisión manual entre la planificación y el aprovisionamiento. Sin embargo, la implementación actual en \texttt{cloudbuild.yaml} ejecuta \texttt{terraform apply -auto-approve} inmediatamente después de \texttt{plan}, sin ninguna pausa para revisión humana. Se documenta esta brecha de forma explícita en lugar de ocultarla: el pipeline actual prioriza velocidad de entrega y confía en los controles automatizados previos (validación de sintaxis y escaneo \texttt{tfsec}) como única barrera antes de modificar infraestructura real. Esto es razonable para un entorno de \emph{staging}, pero insuficiente como única defensa para producción, dado que \texttt{apply} puede modificar o eliminar recursos con datos reales.
+
+\section{Conclusiones y recomendaciones}
+
+\begin{enumerate}[leftmargin=1.2em]
+  \item El pipeline diseñado cubre de forma coherente las seis etapas exigidas por la actividad, e integra la seguridad como parte del flujo (DevSecOps) y no como una revisión final, alineado con lo señalado por IBM (s.f.) y Red Hat (s.f.) sobre la cultura de mejora continua en DevOps.
+  \item La automatización reduce el riesgo de error humano y mejora la trazabilidad de los cambios de infraestructura, pero --- como se identificó en el análisis anterior --- también puede propagar un error de configuración a producción más rápido que un proceso manual si no existen suficientes controles previos a \texttt{apply}.
+  \item \textbf{Recomendación 1:} incorporar una aprobación manual real antes de \texttt{apply} en el entorno de producción (por ejemplo, mediante un \emph{trigger} de Cloud Build con aprobación requerida, o dividiendo \texttt{plan} y \texttt{apply} en dos \emph{triggers} independientes), de modo que el código coincida con lo que el esquema visual declara.
+  \item \textbf{Recomendación 2:} cifrar y restringir el acceso al \emph{bucket} que almacena el \texttt{tfstate}, dado que contiene el detalle completo de la infraestructura y su exposición equivale a exponer el plano completo del sistema.
+  \item \textbf{Recomendación 3:} prohibir explícitamente cambios manuales en la consola de GCP para los recursos gestionados por Terraform, y detectar \emph{drift} de forma periódica (\texttt{terraform plan} programado) para asegurar que el estado declarado siga reflejando la infraestructura real.
+\end{enumerate}
+
+\section*{Referencias}
+\addcontentsline{toc}{section}{Referencias}
+
+\begin{enumerate}[leftmargin=1.4em,itemsep=0.4em]
+  \item[] IBM. (s.f.). \emph{¿Qué es DevOps?} IBM Think. \url{https://www.ibm.com/mx-es/think/topics/devops}
+  \item[] Microsoft Azure. (s.f.). \emph{¿Qué es DevOps?} Microsoft Azure. \url{https://azure.microsoft.com/es-es/resources/cloud-computing-dictionary/what-is-devops}
+  \item[] Red Hat. (s.f.). \emph{CI/CD: La integración y la distribución continuas.} Red Hat. \url{https://www.redhat.com/es/topics/devops/what-is-ci-cd}
+  \item[] HashiCorp. (s.f.). \emph{Terraform documentation.} \url{https://developer.hashicorp.com/terraform/docs}
+  \item[] Google Cloud. (s.f.). \emph{Cloud Build documentation.} \url{https://cloud.google.com/build/docs}
+\end{enumerate}
+
+\end{document}
