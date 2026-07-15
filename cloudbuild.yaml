@@ -22,3 +22,21 @@ steps:
     name: "aquasec/tfsec:latest"
     args: ["terraform/", "--minimum-severity=HIGH"]
     waitFor: ["validate"]
+
+  # ── 3. Terraform Plan ────────────────────────────────────────
+  - id: "plan"
+    name: "hashicorp/terraform:1.6.5"
+    entrypoint: sh
+    args:
+      - -c
+      - |
+        cd terraform
+        terraform init \
+          -backend-config="bucket=tf-state-datalake" \
+          -backend-config="prefix=terraform/state/${_ENV}"
+        terraform plan \
+          -var="project_id=${_PROJECT}" \
+          -var="environment=${_ENV}" \
+          -var="alert_email=${_EMAIL}" \
+          -out=tfplan.bin
+    waitFor: ["security-scan"]
