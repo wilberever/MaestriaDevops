@@ -21,7 +21,7 @@
 
 \section{Introducción y caso de uso}
 
-Este trabajo diseña e implementa el esquema de un pipeline CI/CD automatizado, basado en Infraestructura como Código (IaC) con Terraform, para desplegar un servicio de datos en la nube. Se seleccionó \textbf{Google Cloud Platform (GCP)} como proveedor y un \textbf{Data Lake} como caso de uso: tres buckets de Cloud Storage (\texttt{raw}, \texttt{processed}, \texttt{curated}), un dataset de BigQuery y una cuenta de servicio con permisos para Dataflow, declarados en \texttt{terraform/*.tf} y orquestados mediante \texttt{cloudbuild.yaml}.
+Este trabajo diseña e implementa el esquema de un pipeline CI/CD automatizado, basado en Infraestructura como Código (IaC) con Terraform, para desplegar un servicio de datos en la nube. Se seleccionó \textbf{Google Cloud Platform (GCP)} como proveedor y un \textbf{Data Lake} como caso de uso: tres buckets de Cloud Storage (\texttt{raw}, \texttt{processed}, \texttt{curated}), un dataset de BigQuery y una cuenta de servicio con permisos para Dataflow, declarados en \texttt{terraform/*.tf} y orquestados mediante dos pipelines de Cloud Build (\texttt{cloudbuild-plan.yaml} y \texttt{cloudbuild-apply.yaml}).
 
 Código fuente completo: \texttt{https://github.com/wilberever/MaestriaDevops}. El esquema visual está en \texttt{pipeline\_cicd\_gcp.drawio}.
 
@@ -31,32 +31,32 @@ El pipeline tiene seis etapas:
 
 \begin{enumerate}
   \item \textbf{Control de versiones.} Repositorio Git con un archivo \texttt{CODEOWNERS} que exige revisión antes de mezclar cambios a \texttt{main}.
-  \item \textbf{Integración continua + DevSecOps.} Cada \emph{push} valida sintaxis (\texttt{terraform fmt}, \texttt{terraform validate}) y corre \texttt{tfsec} sobre el código de infraestructura antes de generar el plan. La seguridad es una condición para avanzar, no una revisión final.
-  \item \textbf{Planificación.} \texttt{terraform plan} calcula los cambios contra un \emph{backend} remoto en Cloud Storage con bloqueo de estado.
-  \item \textbf{Aprovisionamiento.} \texttt{terraform apply} crea los buckets, el dataset de BigQuery, la cuenta de servicio de Dataflow y la política de alertas.
+  \item \textbf{Integración continua + DevSecOps.} El \emph{trigger} \texttt{pipeline-plan} se dispara con cada \emph{push} a \texttt{main}, valida sintaxis (\texttt{terraform fmt}, \texttt{terraform validate}) y corre \texttt{tfsec} sobre el código de infraestructura antes de generar el plan. La seguridad es una condición para avanzar, no una revisión final.
+  \item \textbf{Planificación.} \texttt{terraform plan} calcula los cambios contra un \emph{backend} remoto en Cloud Storage con bloqueo de estado, y publica el plan resultante en un \emph{bucket} de GCS para que el siguiente trigger lo consuma.
+  \item \textbf{Aprovisionamiento.} El \emph{trigger} \texttt{pipeline-apply} recoge ese plan y ejecuta \texttt{terraform apply}, pero solo después de que una persona autorizada lo apruebe manualmente desde la consola de Cloud Build (\texttt{approval\_config.approval\_required = true}). Este segundo pipeline crea los buckets, el dataset de BigQuery, la cuenta de servicio de Dataflow y la política de alertas.
   \item \textbf{Validación.} Un \emph{smoke test} confirma que los tres buckets y el dataset existen y son accesibles.
   \item \textbf{Monitoreo.} Cloud Monitoring y Cloud Alerting notifican por correo ante errores.
 \end{enumerate}
 
-\section{Decisiones y una inconsistencia detectada}
+\section{Decisiones técnicas}
 
-Se usa \emph{backend} remoto con versionado (en vez de estado local) porque el archivo \texttt{tfstate} concentra el detalle completo de la infraestructura y, sin protegerlo, es un punto único de fuga de información (Red Hat, s.f.).
+\textbf{Estado remoto con versionado.} Se usa un \emph{backend} remoto en Cloud Storage (en vez de estado local) porque el archivo \texttt{tfstate} concentra el detalle completo de la infraestructura desplegada; mantenerlo remoto, versionado y con bloqueo de estado reduce el riesgo de que ese archivo se pierda, se corrompa por escrituras concurrentes, o quede expuesto sin control (Red Hat, s.f.).
 
-El esquema visual del pipeline incluye una aprobación manual antes de \texttt{apply}, pero el código actual ejecuta \texttt{terraform apply -auto-approve} apenas termina el \texttt{plan}, sin ninguna pausa humana. Se documenta esta diferencia en vez de ocultarla: el pipeline hoy prioriza velocidad y confía solo en la validación y en \texttt{tfsec} como filtro antes de tocar infraestructura real, lo cual es razonable en \emph{staging} pero insuficiente para producción.
+\textbf{Separar \texttt{plan} de \texttt{apply} en dos triggers.} La planificación es de solo lectura y puede correr automáticamente en cada \emph{push}; el aprovisionamiento sí modifica infraestructura real, así que se aísla en su propio \emph{trigger} con aprobación humana obligatoria. Esto evita que un cambio llegue a producción sin que una persona revise antes qué es exactamente lo que Terraform va a hacer.
 
-Tampoco existe todavía, dentro de este mismo repositorio, un job real de Dataflow (Apache Beam): lo que hay es la cuenta de servicio y los permisos para correrlo, no el \emph{pipeline} ETL en sí.
+\textbf{Cuenta de servicio de Dataflow con permisos mínimos.} Se aprovisiona de antemano la identidad y los permisos (\texttt{roles/dataflow.worker}, \texttt{roles/storage.objectAdmin}) que usará el job de Dataflow, siguiendo el principio de mínimo privilegio, de modo que el equipo de datos solo necesite desplegar el job en sí sobre una base de acceso ya restringida.
 
 \section{Conclusiones y recomendaciones}
 
-El pipeline cubre las seis etapas exigidas, integrando la seguridad dentro del flujo (DevSecOps) en vez de como revisión final, en línea con lo señalado por IBM (s.f.) y Red Hat (s.f.). La automatización reduce el error humano y mejora la trazabilidad, pero también puede propagar un error de configuración más rápido que un proceso manual si faltan controles antes de \texttt{apply}.
+El pipeline cubre las seis etapas exigidas, integrando la seguridad dentro del flujo (DevSecOps) en vez de como revisión final, en línea con lo señalado por IBM (s.f.) y Red Hat (s.f.). Separar la planificación (automática) del aprovisionamiento (con aprobación humana) balancea velocidad de entrega con control sobre los cambios que sí tocan infraestructura real.
 
-Recomendaciones concretas para las próximas iteraciones:
+Próximos pasos recomendados para evolucionar el pipeline:
 
 \begin{enumerate}
-  \item Agregar una aprobación manual real antes de \texttt{apply} en producción.
-  \item Cifrar y restringir el acceso al \emph{bucket} del \texttt{tfstate}.
-  \item Prohibir cambios manuales en la consola de GCP y detectar \emph{drift} con un \texttt{terraform plan} programado.
-  \item Completar el job real de Dataflow antes de confiar en la alerta de monitoreo que hoy lo supone.
+  \item Cifrar y restringir aún más el acceso al \emph{bucket} del \texttt{tfstate} y al de los planes publicados.
+  \item Detectar \emph{drift} de forma periódica con un \texttt{terraform plan} programado, para confirmar que la infraestructura real sigue coincidiendo con lo declarado.
+  \item Desplegar el job de Dataflow en Apache Beam sobre la cuenta de servicio ya provisionada, para cerrar el flujo ETL de extremo a extremo.
+  \item Sumar controles adicionales de seguridad de red (VPC Service Controls) y de cifrado (CMEK) sobre los buckets a medida que el proyecto pase de \emph{staging} a producción.
 \end{enumerate}
 
 \section*{Referencias}
