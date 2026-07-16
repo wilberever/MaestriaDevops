@@ -4,7 +4,7 @@ Genera pipeline_cicd_gcp.drawio  — pipeline CI/CD con Terraform + GCP Data Lak
 import xml.etree.ElementTree as ET
 
 # ─── Helpers ─────────────────────────────────────────────────────────────────
-_id = 0
+_id = 1
 def nid():
     global _id; _id += 1; return str(_id)
 
