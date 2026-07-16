@@ -40,7 +40,7 @@ El pipeline tiene seis etapas:
 
 \section{Decisiones técnicas}
 
-\textbf{Estado remoto con versionado.} Se usa un \emph{backend} remoto en Cloud Storage (en vez de estado local) porque el archivo \texttt{tfstate} concentra el detalle completo de la infraestructura desplegada; mantenerlo remoto, versionado y con bloqueo de estado reduce el riesgo de que ese archivo se pierda, se corrompa por escrituras concurrentes, o quede expuesto sin control (Red Hat, s.f.).
+\textbf{Estado remoto con versionado.} Se usa un \emph{backend} remoto en Cloud Storage (en vez de estado local) porque el archivo \texttt{tfstate} concentra el detalle completo de la infraestructura desplegada; mantenerlo remoto, versionado y con bloqueo de estado reduce el riesgo de que ese archivo se pierda, se corrompa por escrituras concurrentes, o quede expuesto sin control (Red Hat, s. f.).
 
 \textbf{Separar \texttt{plan} de \texttt{apply} en dos triggers.} La planificación es de solo lectura y puede correr automáticamente en cada \emph{push}; el aprovisionamiento sí modifica infraestructura real, así que se aísla en su propio \emph{trigger} con aprobación humana obligatoria. Esto evita que un cambio llegue a producción sin que una persona revise antes qué es exactamente lo que Terraform va a hacer.
 
@@ -48,7 +48,7 @@ El pipeline tiene seis etapas:
 
 \section{Conclusiones y recomendaciones}
 
-El pipeline cubre las seis etapas exigidas, integrando la seguridad dentro del flujo (DevSecOps) en vez de como revisión final, en línea con lo señalado por IBM (s.f.) y Red Hat (s.f.). Separar la planificación (automática) del aprovisionamiento (con aprobación humana) balancea velocidad de entrega con control sobre los cambios que sí tocan infraestructura real.
+El pipeline cubre las seis etapas exigidas, integrando la seguridad dentro del flujo (DevSecOps) en vez de como revisión final, en línea con lo señalado por IBM (s. f.) y Red Hat (s. f.). Separar la planificación (automática) del aprovisionamiento (con aprobación humana) balancea velocidad de entrega con control sobre los cambios que sí tocan infraestructura real.
 
 Próximos pasos recomendados para evolucionar el pipeline:
 
@@ -59,16 +59,31 @@ Próximos pasos recomendados para evolucionar el pipeline:
   \item Sumar controles adicionales de seguridad de red (VPC Service Controls) y de cifrado (CMEK) sobre los buckets a medida que el proyecto pase de \emph{staging} a producción.
 \end{enumerate}
 
-\section*{Referencias}
+\begin{center}
+\textbf{Referencias}
+\end{center}
 
-IBM. (s.f.). \emph{¿Qué es DevOps?} IBM Think. \texttt{https://www.ibm.com/mx-es/think/topics/devops}
+\begin{flushleft}
 
-Microsoft Azure. (s.f.). \emph{¿Qué es DevOps?} \texttt{https://azure.microsoft.com/es-es/resources/cloud-computing-dictionary/what-is-devops}
+\hangindent=1.27cm\hangafter=1
+\noindent Google Cloud. (s. f.). \emph{Cloud Build documentation}. https://cloud.google.com/build/docs
 
-Red Hat. (s.f.). \emph{CI/CD: La integración y la distribución continuas.} \texttt{https://www.redhat.com/es/topics/devops/what-is-ci-cd}
+\medskip
+\hangindent=1.27cm\hangafter=1
+\noindent HashiCorp. (s. f.). \emph{Terraform documentation}. HashiCorp Developer. https://developer.hashicorp.com/terraform/docs
 
-HashiCorp. (s.f.). \emph{Terraform documentation.} \texttt{https://developer.hashicorp.com/terraform/docs}
+\medskip
+\hangindent=1.27cm\hangafter=1
+\noindent IBM. (s. f.). \emph{¿Qué es DevOps?} IBM Think. https://www.ibm.com/mx-es/think/topics/devops
 
-Google Cloud. (s.f.). \emph{Cloud Build documentation.} \texttt{https://cloud.google.com/build/docs}
+\medskip
+\hangindent=1.27cm\hangafter=1
+\noindent Microsoft Azure. (s. f.). \emph{¿Qué es DevOps?} https://azure.microsoft.com/es-es/resources/cloud-computing-dictionary/what-is-devops
+
+\medskip
+\hangindent=1.27cm\hangafter=1
+\noindent Red Hat. (s. f.). \emph{CI/CD: La integración y la distribución continuas}. https://www.redhat.com/es/topics/devops/what-is-ci-cd
+
+\end{flushleft}
 
 \end{document}
