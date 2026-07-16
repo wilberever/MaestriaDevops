@@ -1,0 +1,9 @@
+# Cualquier cambio de infraestructura requiere revisión del equipo
+# antes de poder mezclarse a main.
+#
+# Reemplazar por los usuarios reales de GitHub del equipo antes de
+# habilitar branch protection con "Require review from Code Owners".
+
+*                   @wilberever
+/terraform/         @wilberever
+/cloudbuild.yaml    @wilberever
