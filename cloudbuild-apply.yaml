@@ -1,0 +1,46 @@
+substitutions:
+  _ENV: "staging"
+  _PROJECT: "${PROJECT_ID}"
+  _EMAIL: "devops@example.com"
+
+steps:
+
+  # ── 1. Recuperar el plan aprobado ─────────────────────────────
+  - id: "fetch-plan"
+    name: "gcr.io/google.com/cloudsdktool/cloud-sdk:slim"
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        mkdir -p terraform
+        gsutil cp gs://tf-state-datalake/plans/${_ENV}/tfplan.bin terraform/tfplan.bin
+
+  # ── 2. Terraform Apply ────────────────────────────────────────
+  - id: "apply"
+    name: "hashicorp/terraform:1.6.5"
+    entrypoint: sh
+    args:
+      - -c
+      - |
+        cd terraform
+        terraform init \
+          -backend-config="bucket=tf-state-datalake" \
+          -backend-config="prefix=terraform/state/${_ENV}"
+        terraform apply -auto-approve tfplan.bin
+    waitFor: ["fetch-plan"]
+
+  # ── 3. Smoke tests ────────────────────────────────────────────
+  - id: "verify"
+    name: "gcr.io/google.com/cloudsdktool/cloud-sdk:slim"
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        gsutil ls gs://datalake-raw-${_ENV}       || exit 1
+        gsutil ls gs://datalake-processed-${_ENV} || exit 1
+        gsutil ls gs://datalake-curated-${_ENV}   || exit 1
+        bq ls --project_id=${_PROJECT} data_mart_${_ENV} || exit 1
+        echo "Despliegue verificado OK"
+    waitFor: ["apply"]
+
+timeout: "900s"

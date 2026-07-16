@@ -17,3 +17,11 @@ output "bigquery_dataset" {
 output "dataflow_sa" {
   value = google_service_account.dataflow.email
 }
+
+output "trigger_plan" {
+  value = google_cloudbuild_trigger.plan.trigger_id
+}
+
+output "trigger_apply" {
+  value = google_cloudbuild_trigger.apply.trigger_id
+}

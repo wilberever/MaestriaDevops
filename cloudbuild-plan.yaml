@@ -41,29 +41,14 @@ steps:
           -out=tfplan.bin
     waitFor: ["security-scan"]
 
-  # ── 4. Terraform Apply ───────────────────────────────────────
-  - id: "apply"
-    name: "hashicorp/terraform:1.6.5"
-    entrypoint: sh
-    args:
-      - -c
-      - |
-        cd terraform
-        terraform apply -auto-approve tfplan.bin
-    waitFor: ["plan"]
-
-  # ── 5. Smoke tests ───────────────────────────────────────────
-  - id: "verify"
+  # ── 4. Publicar el plan para que el trigger de apply lo use ──
+  - id: "publish-plan"
     name: "gcr.io/google.com/cloudsdktool/cloud-sdk:slim"
     entrypoint: bash
     args:
       - -c
       - |
-        gsutil ls gs://datalake-raw-${_ENV}       || exit 1
-        gsutil ls gs://datalake-processed-${_ENV} || exit 1
-        gsutil ls gs://datalake-curated-${_ENV}   || exit 1
-        bq ls --project_id=${_PROJECT} data_mart_${_ENV} || exit 1
-        echo "Despliegue verificado OK"
-    waitFor: ["apply"]
+        gsutil cp terraform/tfplan.bin gs://tf-state-datalake/plans/${_ENV}/tfplan.bin
+    waitFor: ["plan"]
 
-timeout: "900s"
+timeout: "600s"
