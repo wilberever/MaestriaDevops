@@ -96,22 +96,22 @@ LAST_W = W - XS[5] - 30  # ~378
 
 TITLE_Y = 20;  TITLE_H = 65
 HDR_Y   = 100; HDR_H   = 65
-BODY_Y  = 175; BODY_H  = 360
+BODY_Y  = 175; BODY_H  = 440
 ITEM_H  = 72;  ITEM_GAP = 10
 ITEM_X_PAD = 12
 ITEM_W = COL_W - ITEM_X_PAD * 2
 
-ENV_Y  = 555; ENV_H = 50
-FB_Y   = 620
-LEG_Y  = 655; LEG_H = 60
-FOOT_Y = 725
+ENV_Y  = 635; ENV_H = 50
+FB_Y   = 700
+LEG_Y  = 735; LEG_H = 60
+FOOT_Y = 805
 
 # ─── Build XML ───────────────────────────────────────────────────────────────
 model = ET.Element("mxGraphModel",
     dx="1422", dy="762", grid="0", gridSize="10",
     guides="1", tooltips="1", connect="1", arrows="1",
     fold="1", page="0", pageScale="1",
-    pageWidth=str(W), pageHeight="800",
+    pageWidth=str(W), pageHeight="880",
     math="0", shadow="0")
 
 root = ET.SubElement(model, "root")
@@ -137,7 +137,7 @@ stages = [
         "header": "2.  Integración Continua\n+ DevSecOps",
         "hs": S_HDR_SEC, "bs": S_BODY_R,
         "items": [
-            (S_TOOL,  "Cloud Build Trigger\n(push / PR event)"),
+            (S_TOOL,  "Trigger \"pipeline-plan\"\n(push a main, automático)"),
             (S_TOOL,  "terraform fmt -check\nterraform validate"),
             (S_SEC,   "tfsec  — SAST IaC\n(CWE / CVE scan)"),
         ]
@@ -148,12 +148,14 @@ stages = [
         "items": [
             (S_TOOL,  "Remote Backend\nGCS Bucket + State Lock"),
             (S_INFRA, "terraform plan\n-out=tfplan.bin"),
+            (S_INFRA, "Plan publicado en GCS\n(gs://tf-state-datalake/plans)"),
         ]
     },
     {
         "header": "4.  Terraform Apply\n(GCP Infra)",
         "hs": S_HDR_INF, "bs": S_BODY_G,
         "items": [
+            (S_GATE,  "Trigger \"pipeline-apply\"\napproval_required = true"),
             (S_INFRA, "terraform apply tfplan.bin"),
             (S_INFRA, "Cloud Storage  — Data Lake\n(raw / processed / curated)"),
             (S_INFRA, "BigQuery  — Dataset\ndata_mart"),
@@ -235,6 +237,7 @@ legend_items = [
     (S_SEC,   "Control de Seguridad (DevSecOps)"),
     (S_INFRA, "Recurso GCP / IaC"),
     (S_MON,   "Monitoreo / Auditoria"),
+    (S_GATE,  "Approval Gate (Cloud Build)"),
 ]
 lx = START_X + 90
 for (sty, lbl) in legend_items:
