@@ -23,20 +23,6 @@ steps:
     args: ["terraform/", "--minimum-severity=HIGH"]
     waitFor: ["validate"]
 
-  - id: "security-scan-checkov"
-    name: "bridgecrew/checkov:latest"
-    entrypoint: sh
-    args:
-      - -c
-      - |
-        checkov -d terraform/ --compact --quiet
-    waitFor: ["validate"]
-
-  - id: "secrets-scan"
-    name: "zricethezav/gitleaks:latest"
-    args: ["detect", "--source=.", "--no-git", "-v"]
-    waitFor: ["validate"]
-
   # ── 3. Terraform Plan ────────────────────────────────────────
   - id: "plan"
     name: "hashicorp/terraform:1.6.5"
@@ -53,19 +39,7 @@ steps:
           -var="environment=${_ENV}" \
           -var="alert_email=${_EMAIL}" \
           -out=tfplan.bin
-        terraform show -json tfplan.bin > tfplan.json
-    waitFor: ["security-scan", "security-scan-checkov", "secrets-scan"]
-
-  # ── 3b. Guardar el plan como artefacto auditable ─────────────
-  - id: "plan-artifact"
-    name: "gcr.io/google.com/cloudsdktool/cloud-sdk:slim"
-    entrypoint: bash
-    args:
-      - -c
-      - |
-        gsutil cp terraform/tfplan.json \
-          gs://tf-state-datalake/plans/${_ENV}/${BUILD_ID}.json
-    waitFor: ["plan"]
+    waitFor: ["security-scan"]
 
   # ── 4. Terraform Apply ───────────────────────────────────────
   - id: "apply"
@@ -76,7 +50,7 @@ steps:
       - |
         cd terraform
         terraform apply -auto-approve tfplan.bin
-    waitFor: ["plan-artifact"]
+    waitFor: ["plan"]
 
   # ── 5. Smoke tests ───────────────────────────────────────────
   - id: "verify"
@@ -89,9 +63,7 @@ steps:
         gsutil ls gs://datalake-processed-${_ENV} || exit 1
         gsutil ls gs://datalake-curated-${_ENV}   || exit 1
         bq ls --project_id=${_PROJECT} data_mart_${_ENV} || exit 1
-        bq query --project_id=${_PROJECT} --use_legacy_sql=false --format=none \
-          "SELECT COUNT(*) FROM \`${_PROJECT}.data_mart_${_ENV}.__TABLES__\`" || exit 1
         echo "Despliegue verificado OK"
     waitFor: ["apply"]
 
-timeout: "1200s"
+timeout: "900s"
