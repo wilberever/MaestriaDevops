@@ -96,22 +96,22 @@ LAST_W = W - XS[5] - 30  # ~378
 
 TITLE_Y = 20;  TITLE_H = 65
 HDR_Y   = 100; HDR_H   = 65
-BODY_Y  = 175; BODY_H  = 820
+BODY_Y  = 175; BODY_H  = 360
 ITEM_H  = 72;  ITEM_GAP = 10
 ITEM_X_PAD = 12
 ITEM_W = COL_W - ITEM_X_PAD * 2
 
-ENV_Y  = 1010; ENV_H = 50
-FB_Y   = 1075
-LEG_Y  = 1110; LEG_H = 60
-FOOT_Y = 1185
+ENV_Y  = 555; ENV_H = 50
+FB_Y   = 620
+LEG_Y  = 655; LEG_H = 60
+FOOT_Y = 725
 
 # ─── Build XML ───────────────────────────────────────────────────────────────
 model = ET.Element("mxGraphModel",
     dx="1422", dy="762", grid="0", gridSize="10",
     guides="1", tooltips="1", connect="1", arrows="1",
     fold="1", page="0", pageScale="1",
-    pageWidth=str(W), pageHeight="1260",
+    pageWidth=str(W), pageHeight="800",
     math="0", shadow="0")
 
 root = ET.SubElement(model, "root")
@@ -129,11 +129,8 @@ stages = [
         "header": "1.  Control de Versiones",
         "hs": S_HDR_GEN, "bs": S_BODY_B,
         "items": [
-            (S_TOOL,  "Cloud Source Repositories\n(mirror de GitHub)"),
-            (S_TOOL,  "Git Flow Strategy\nfeature / develop / main"),
+            (S_TOOL,  "Repositorio Git\n(GitHub)"),
             (S_TOOL,  "Pull Request + Code Review\n(CODEOWNERS obligatorio)"),
-            (S_TOOL,  "Semantic Versioning\n(tags v1.x.x)"),
-            (S_TOOL,  "Branch Protection Rules\n(sin push directo a main)"),
         ]
     },
     {
@@ -143,9 +140,6 @@ stages = [
             (S_TOOL,  "Cloud Build Trigger\n(push / PR event)"),
             (S_TOOL,  "terraform fmt -check\nterraform validate"),
             (S_SEC,   "tfsec  — SAST IaC\n(CWE / CVE scan)"),
-            (S_SEC,   "Checkov  — CIS GCP\nCompliance as Code"),
-            (S_SEC,   "Secrets Manager Scan\n(gitleaks)"),
-            (S_GATE,  "Quality Gate\nPASS  /  FAIL"),
         ]
     },
     {
@@ -153,10 +147,7 @@ stages = [
         "hs": S_HDR_GEN, "bs": S_BODY_B,
         "items": [
             (S_TOOL,  "Remote Backend\nGCS Bucket + State Lock"),
-            (S_TOOL,  "terraform init\n-backend-config=prod.hcl"),
             (S_INFRA, "terraform plan\n-out=tfplan.bin"),
-            (S_INFRA, "tfplan → JSON artifact\n(almacenado en GCS)"),
-            (S_GATE,  "Revisión Manual\nApproval Gate (Cloud Build)"),
         ]
     },
     {
@@ -165,33 +156,24 @@ stages = [
         "items": [
             (S_INFRA, "terraform apply tfplan.bin"),
             (S_INFRA, "Cloud Storage  — Data Lake\n(raw / processed / curated)"),
-            (S_INFRA, "BigQuery  — Data Warehouse\nDatasets + Scheduled Queries"),
-            (S_INFRA, "Dataflow  — ETL Pipeline\n(Apache Beam Jobs)"),
-            (S_SEC,   "IAM  — Least Privilege\n+ VPC Service Controls + CMEK"),
-            (S_TOOL,  "Terraform State Versionado\n(GCS versioning habilitado)"),
+            (S_INFRA, "BigQuery  — Dataset\ndata_mart"),
+            (S_SEC,   "Service Account Dataflow\n(mínimo privilegio)"),
         ]
     },
     {
         "header": "5.  Validación\ndel Servicio",
         "hs": S_HDR_GEN, "bs": S_BODY_B,
         "items": [
-            (S_TOOL,  "Smoke Tests\n(Python + google-cloud SDK)"),
-            (S_TOOL,  "Health Checks\nGCS / BigQuery / Dataflow"),
-            (S_INFRA, "Dataflow Job Run\n+ Data Quality Checks"),
-            (S_INFRA, "BigQuery Query Test\nSELECT COUNT(*)"),
-            (S_GATE,  "Deployment Gate\nVERIFIED  /  ROLLBACK"),
+            (S_TOOL,  "Smoke Tests\n(gsutil / bq — Cloud SDK)"),
+            (S_INFRA, "Chequeo de los 3 buckets\n+ existencia del dataset"),
         ]
     },
     {
         "header": "6.  Monitoreo\ny Control",
         "hs": S_HDR_MON, "bs": S_BODY_P,
         "items": [
-            (S_MON,  "Cloud Monitoring\nDashboards + SLOs"),
-            (S_MON,  "Cloud Alerting\n+ PagerDuty / Email"),
-            (S_SEC,  "Cloud Audit Logs\n(Admin + Data Access)"),
-            (S_SEC,  "Security Command Center\nVulnerabilidades activas"),
-            (S_MON,  "Cloud Billing Alerts\nBudget por entorno"),
-            (S_MON,  "Error Reporting\n+ Cloud Trace"),
+            (S_MON,  "Cloud Monitoring\nAlert Policy"),
+            (S_MON,  "Notificación por Email\nante errores"),
         ]
     },
 ]
@@ -224,7 +206,7 @@ for i in range(len(stages) - 1):
 
 # ── Feedback loop label ────────────────────────────────────────────────────
 cell(root, nid(),
-     "&#8634;  Feedback Loop  —  Rollback automatico / Alertas al equipo DevOps",
+     "&#8634;  Feedback Loop  —  Alertas al equipo DevOps ante fallos (sin rollback automatico todavia)",
      S_SECTION,
      START_X, FB_Y, W - START_X*2, 30)
 
@@ -253,7 +235,6 @@ legend_items = [
     (S_SEC,   "Control de Seguridad (DevSecOps)"),
     (S_INFRA, "Recurso GCP / IaC"),
     (S_MON,   "Monitoreo / Auditoria"),
-    (S_GATE,  "Approval Gate"),
 ]
 lx = START_X + 90
 for (sty, lbl) in legend_items:
